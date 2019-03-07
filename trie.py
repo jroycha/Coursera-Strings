@@ -24,16 +24,22 @@ class Node:
     def __init__(self,ID):
         self.ID=ID
         self.children=dict()#key=edge letter, value is Node
+        self.is_end=False
     def add_child(self,letter,ID):
         if letter in self.children:
             raise RekeyingError(letter,self.children[letter])
         else:
             self.children[letter]=Node(ID)
+    def set_end(self):
+        self.is_end=True
     def print(self):
         for child in self.children:
             otherID=self.children[child].ID
-            print(f'{self.ID}->{otherID}:{child}')
+            print('{}->{}:{}'.format(self.ID,otherID,child))
             self.children[child].print()
+
+from collections import defaultdict
+
 
 class Trie:
     def __init__(self,words):
@@ -52,14 +58,43 @@ class Trie:
                 continue
             currentNode=currentNode.children[letter]
             self.num_nodes+=1
+        currentNode.set_end()
     def print(self):
         self.root.print()
-
+    def match(self,text):# find occurrences of words in Trie in a text
+        pattern_occurrence=defaultdict(list)
+        for i in range(len(text)):
+            idx=i 
+            curNode=self.root
+            try:
+                while True and curNode.children:
+                    curNode=curNode.children[text[idx]]
+                    idx+=1
+                    if curNode.is_end:
+                        pattern_occurrence[text[i:idx]].append(i)
+                #pattern_occurrence[text[i:idx]].append(i)
+            except KeyError:
+                """ we get this error when we search for a trie node that
+                isn't present. this is fine, it means we're done looking at
+                this growing substring"""
+                continue
+            except IndexError:
+                """this means we went to far in the text. basically, we're
+                requiring more text than we have to match a pattern, so again
+                we're done with this growing substring"""
+                continue
+        return pattern_occurrence
                 
-
-
-
 if __name__ == '__main__':
-    patterns = sys.stdin.read().split()[1:]
-    tree = Trie(patterns)
-    tree.print()
+    text = sys.stdin.readline ().strip ()
+    n = int (sys.stdin.readline ().strip ())
+    patterns = []
+    for i in range (n):
+        patterns += [sys.stdin.readline ().strip ()]
+    wordTrie=Trie(patterns)
+    out=list(wordTrie.match(text).values())
+    val_print=[]
+    for a in out:
+        val_print+=a
+    print(*sorted(set(val_print)))
+    #sys.stdout.write (' '.join (map (str, ans)) + '\n')
