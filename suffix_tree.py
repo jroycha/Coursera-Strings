@@ -33,8 +33,7 @@ class Node:
         self.is_end=True
       
 
-    
-
+from copy import copy
 
 class SuffixTree:
     def __init__(self,text):
@@ -89,13 +88,66 @@ class SuffixTree:
         while(len(nodeStack)>0):
             node=nodeStack.pop()
             for child in node.children:
-                print(text[child[0]:child[0]+child[1]])
+                print(self.text[child[0]:child[0]+child[1]])
                 nodeStack.append(node.children[child])
-                
+    def min_diff_substring(self):
+        octoPos=self.text.find('#')
+        stack=[self.process_kids(self.root,octoPos)]
+        min_string=self.text[octoPos:]
+        while stack:
+            #print(1)
+            currentNode=stack[-1]
+            if currentNode[2]: #if you have children who are parents, pop one, add it's info to stack above you
+                #print(2)
+                newChild=currentNode[2].pop()
+                stack.append(self.process_kids(currentNode[0][newChild],octoPos,newChild))
+            elif currentNode[1]:
+                currentLeaf=currentNode[1].pop()
+                #print(3)
+                n=len(stack)
+                i=1
+                while stack[n-i][3]==False:#while not limited
+                    i+=1
+                strList=[self.text[elem[4][0]:elem[4][0]+elem[4][1]] for elem in stack[:n-i+1]]
+                if i==1:
+                    strList+=[self.text[currentLeaf[0]]]
+                else:
+                    strList+=[self.text[stack[n-i+1][4][0]]]
+                new_min_string=''.join(strList)
+                #print(new_min_string)
+                #print(min_string)
+                if len(min_string)>len(new_min_string):
+                    #print(4)
+                    min_string=new_min_string
+            else:
+                #print(5)
+                stack.pop()
+                if currentNode[3]:
+                    #print(6)
+                    if stack:
+                        stack[-1][3]=True
+        return min_string
+    def process_kids(self,node,octoPos,nodeKey=(0,0)):
+        leaves=[]
+        childParents=[]
+        limit=False
+        for child in node.children:
+            if child[0]==octoPos:
+                #node.children.pop(child)
+                pass
+            elif child[0]<octoPos and child[0]+child[1]==len(self.text):
+                leaves.append(child)
+            elif child[0]+child[1]==len(self.text):
+                limit=True
+            else:
+                childParents.append(child)
+        return [node.children, leaves, childParents, limit,nodeKey]
         
 
-
 if __name__ == '__main__':
-    text = sys.stdin.readline().strip()
+    p = sys.stdin.readline ().strip ()
+    q = sys.stdin.readline ().strip ()
+    text = p+'#'+q+'$'
     test=SuffixTree(text)
-    test.print_iterative()
+    print(test.min_diff_substring())
+    
