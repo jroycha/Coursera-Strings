@@ -14,10 +14,17 @@ class Node:
     def __init__(self):
         self.children=dict()#what kinda key do you use (pos,length)
         self.is_end=False
+        self.limit=False
+        self.Parent=None
+        self.Parent_key=None
     def split(self,key,cut_pos):#key=(pos,len) the key of the next node, i.e. the edge
         word_pos,word_length=key
         newNode=Node()
-        newNode.children[cut_pos+1,word_length+word_pos-cut_pos-1]=self.children.pop((word_pos,word_length))
+        newNode.Parent=self
+        newNode.Parent_key=(word_pos,cut_pos-word_pos+1)
+        self.children[(word_pos,word_length)].Parent=newNode
+        self.children[(word_pos,word_length)].Parent_key=(cut_pos+1,word_length+word_pos-cut_pos-1)
+        newNode.children[(cut_pos+1,word_length+word_pos-cut_pos-1)]=self.children.pop((word_pos,word_length))
         self.children[(word_pos,cut_pos-word_pos+1)]=newNode
         return newNode
     def add_child(self,pos,length):
@@ -25,6 +32,8 @@ class Node:
             raise RekeyingError((pos,length),self.children[key])
         else:
             self.children[(pos,length)]=Node()
+            self.children[(pos,length)].Parent=self
+            self.children[(pos,length)].Parent_key=(pos,length)
     def print(self,text):
         for child in self.children:
             print(text[child[0]:child[0]+child[1]])
@@ -93,40 +102,50 @@ class SuffixTree:
     def min_diff_substring(self):
         octoPos=self.text.find('#')
         stack=[self.process_kids(self.root,octoPos)]
+        leafStack=[]
         min_string=self.text[octoPos:]
         while stack:
             #print(1)
+            #print('printing stack')
+            #for element in stack:
+                #print(element[1:])
             currentNode=stack[-1]
             if currentNode[2]: #if you have children who are parents, pop one, add it's info to stack above you
                 #print(2)
                 newChild=currentNode[2].pop()
+                #print(newChild)
                 stack.append(self.process_kids(currentNode[0][newChild],octoPos,newChild))
-            elif currentNode[1]:
+            elif currentNode[1]: #if you have a leaf, add it to the leafStack with a link to it's parentNode
                 currentLeaf=currentNode[1].pop()
-                #print(3)
-                n=len(stack)
-                i=1
-                while stack[n-i][3]==False:#while not limited
-                    i+=1
-                strList=[self.text[elem[4][0]:elem[4][0]+elem[4][1]] for elem in stack[:n-i+1]]
-                if i==1:
-                    strList+=[self.text[currentLeaf[0]]]
-                else:
-                    strList+=[self.text[stack[n-i+1][4][0]]]
-                new_min_string=''.join(strList)
-                #print(new_min_string)
-                #print(min_string)
-                if len(min_string)>len(new_min_string):
-                    #print(4)
-                    min_string=new_min_string
+                leafStack.append([currentLeaf,currentNode[5]])
             else:
                 #print(5)
                 stack.pop()
-                if currentNode[3]:
+                if currentNode[5].limit:
                     #print(6)
-                    if stack:
-                        stack[-1][3]=True
-        return min_string
+                    if currentNode[5].Parent:
+                        currentNode[5].Parent.limit=True
+        while leafStack:
+            #print('in leaf stack')
+            currentString,parent=leafStack.pop()
+            last_letter=[]
+            strCollection=[]
+            while parent.limit==False:
+                currentString=parent.Parent_key
+                parent=parent.Parent
+            last_letter=[self.text[currentString[0]]]
+            while parent.Parent:
+                currentString=parent.Parent_key
+                parent=parent.Parent
+                strCollection.append(self.text[currentString[0]:currentString[0]+currentString[1]])
+            strCollection.reverse()
+            new_min_string="".join(strCollection+last_letter)
+            if len(new_min_string)<len(min_string):
+                min_string=new_min_string
+        if min_string==self.text[octoPos:]:
+            return False
+        else:
+            return min_string
     def process_kids(self,node,octoPos,nodeKey=(0,0)):
         leaves=[]
         childParents=[]
@@ -139,12 +158,58 @@ class SuffixTree:
                 leaves.append(child)
             elif child[0]+child[1]==len(self.text):
                 limit=True
+                node.limit=True
             else:
                 childParents.append(child)
-        return [node.children, leaves, childParents, limit,nodeKey]
+        return [node.children, leaves, childParents, limit, nodeKey, node]
+        
+def all_substrings(word):
+    length=len(word)
+    return sorted(list(set([word[i:j+1] for i in range(length)
+                            for j in range(i,length)])),key =lambda x:len(x))
+def naive_min_sub(p,q):
+    p_set=all_substrings(p)
+    q_set=all_substrings(q)
+    matches=[]
+    for element in p_set:
+        if matches and len(element)>len(matches[-1]):
+            break
+        if element in q_set:
+            pass
+        else:
+            matches.append(element)
+    return matches
+from random import choice
+from random import randint
+def stress_test():
+    Alpha=['A','C','G','T']
+    while True:
+        length=randint(1,18)
+        p_list=[]
+        q_list=[]
+        for _ in range(length):
+            p_list+=[choice(Alpha)]
+            q_list+=[choice(Alpha)]
+        p="".join(p_list)
+        q="".join(q_list)
+        matches=naive_min_sub(p,q)
+        test=SuffixTree(p+'#'+q+'$')
+        test_res=test.min_diff_substring()
+        if not test_res and not matches:
+            print("OK")
+        elif  test_res in matches:
+            print("OK")
+        else:
+            print("Incorrect Answer")
+            print(p)
+            print(q)
+            print(test_res)
+            print(matches)
+            break
         
 
 if __name__ == '__main__':
+##    stress_test()
     p = sys.stdin.readline ().strip ()
     q = sys.stdin.readline ().strip ()
     text = p+'#'+q+'$'
